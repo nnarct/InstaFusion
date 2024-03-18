@@ -1,14 +1,19 @@
 import * as z from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { Link } from "react-router-dom";
-import { createUserAccount } from "@/lib/appwrite/api";
-import { SignupValidation } from "@/lib/validation";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+import {
+  useCreateUserAccount,
+  useSignInAccount,
+} from "@/lib/react-query/queriesAndMutations";
+import { useUserContext } from "@/context/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
+import { SignUpValidation } from "@/lib/validation";
 
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -18,12 +23,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Loader from "@/components/shared/Loader";
 
-const SignupForm = () => {
-  const isLoading = false;
+const SignUpForm = () => {
+  const { toast } = useToast();
+  const { checkAuthUser, isPending: isUserLoading } = useUserContext();
+  const navigate = useNavigate();
 
-  // Define form
-  const form = useForm<z.infer<typeof SignupValidation>>({
-    resolver: zodResolver(SignupValidation),
+  const form = useForm<z.infer<typeof SignUpValidation>>({
+    resolver: zodResolver(SignUpValidation),
     defaultValues: {
       name: "",
       username: "",
@@ -32,11 +38,53 @@ const SignupForm = () => {
     },
   });
 
-  // Define a submit handler.
-  const onSubmit = async (values: z.infer<typeof SignupValidation>) => {
-    // Create new user
-    const newUser = await createUserAccount(values);
-    console.log(newUser);
+  const { mutateAsync: createUserAccount, isPending: isCreatingAccount } =
+    useCreateUserAccount();
+  const { mutateAsync: signInAccount, isPending: isSigningInUser } =
+    useSignInAccount();
+
+  const handleSignUp = async (user: z.infer<typeof SignUpValidation>) => {
+    try {
+      const newUser = await createUserAccount(user);
+      if (!newUser) {
+        toast({ title: "Sign up failed. Please try again." });
+        return;
+      }
+      console.log("newUser created!: ", { newUser });
+
+      const session = await signInAccount({
+        email: user.email,
+        password: user.password,
+      });
+
+      if (!session) {
+        toast({
+          title: "Something went wrong. Please login to your new account.",
+          variant: "destructive",
+        });
+
+        navigate("/sign-in");
+
+        return;
+      }
+
+      const isLoggedIn = await checkAuthUser();
+
+      if (isLoggedIn) {
+        form.reset();
+
+        navigate("/");
+      } else {
+        toast({
+          title: "Login failed. Please try again.",
+          variant: "destructive",
+        });
+
+        return;
+      }
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   return (
@@ -49,7 +97,7 @@ const SignupForm = () => {
             To use InstaFusion, please enter your details
           </p>
           <form
-            onSubmit={form.handleSubmit(onSubmit)}
+            onSubmit={form.handleSubmit(handleSignUp)}
             className="flex flex-col gap-5 w-full mt-4"
           >
             <FormField
@@ -105,22 +153,22 @@ const SignupForm = () => {
               )}
             />
             <Button type="submit" className="shad-button_primary">
-              {isLoading ? (
+              {isCreatingAccount || isSigningInUser || isUserLoading ? (
                 <div className="flex-center gap-2">
-                  <Loader />
-                  Loading...
+                  <Loader /> Loading...
                 </div>
               ) : (
                 "Sign Up"
               )}
             </Button>
+
             <p className="text-small-regular text-light-2 text-center mt-2">
-              Already have an account?{" "}
+              Already have an account?
               <Link
                 to="/sign-in"
                 className="text-primary-500 text-small-semibold ml-1"
               >
-                Log in
+                Sign in
               </Link>
             </p>
           </form>
@@ -130,4 +178,4 @@ const SignupForm = () => {
   );
 };
 
-export default SignupForm;
+export default SignUpForm;

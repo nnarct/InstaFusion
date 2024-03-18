@@ -25,7 +25,7 @@ import Loader from "@/components/shared/Loader";
 
 const SignUpForm = () => {
   const { toast } = useToast();
-  const { checkAuthUser, isPending: isUserLoading } = useUserContext();
+  const { checkAuthUser, isLoading: isUserLoading } = useUserContext();
   const navigate = useNavigate();
 
   const form = useForm<z.infer<typeof SignUpValidation>>({

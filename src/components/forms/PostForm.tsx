@@ -20,7 +20,7 @@ import { PostValidation } from "@/lib/validation";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useCreatePost } from "@/lib/react-query/queriesAndMutations";
-import Loader from "../shared/Loader";
+import Loader from "@/components/shared/Loader";
 
 type PostFormProps = {
   post?: Models.Document;
@@ -50,7 +50,7 @@ const PostForm = ({ post }: PostFormProps) => {
     });
 
     if (!newPost) {
-      toast({ title: "Please try again." });
+      toast({ title: "Create post failed. Please try again." , className:"bg-primary"});
       return;
     }
 
